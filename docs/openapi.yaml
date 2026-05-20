@@ -1,0 +1,1052 @@
+openapi: 3.0.3
+info:
+  title: Энергоэффективность МКД API
+  description: |
+    API для системы анализа энергоэффективности многоквартирных домов
+    
+    ## Архитектура
+    - 4-уровневая архитектура (Источники → Брокер → Хранение/ETL → Аналитика/API)
+    - Соответствие ПП РФ №354, №124, СП 50.13330.2012
+    - Интеграция с ГИС ЖКХ, АСКУТЭ, Росгидромет
+    
+    ## Безопасность
+    - JWT/OAuth2 аутентификация
+    - RBAC (Role-Based Access Control)
+    - Аудит всех операций
+  version: 1.0.0
+  contact:
+    name: Diplom Project
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.diplom.local/api/v1
+    description: Production server
+  - url: https://staging-api.diplom.local/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+tags:
+  - name: Ingest
+    description: Приём данных от источников (АСКУТЭ, погода)
+  - name: Analytics
+    description: Аналитика и метрики по МКД
+  - name: Forecast
+    description: Прогнозирование потребления
+  - name: Anomalies
+    description: Детекция и управление аномалиями
+  - name: Reports
+    description: Генерация отчётов (PDF/Excel)
+  - name: Compliance
+    description: Нормативное соответствие (ПП РФ №354)
+  - name: Admin
+    description: Управление пользователями и настройками
+  - name: Auth
+    description: Аутентификация и авторизация
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT токен доступа
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.diplom.local/oauth/authorize
+          tokenUrl: https://auth.diplom.local/oauth/token
+          scopes:
+            read: Доступ на чтение
+            write: Доступ на запись
+            admin: Административный доступ
+
+  schemas:
+    # === Metering Data ===
+    MeteringData:
+      type: object
+      required:
+        - device_id
+        - timestamp
+        - value
+        - unit
+      properties:
+        device_id:
+          type: string
+          description: Уникальный идентификатор прибора учёта
+          example: "MCD-001-HT-01"
+        timestamp:
+          type: string
+          format: date-time
+          description: Временная метка измерения (ISO 8601)
+          example: "2024-01-15T10:00:00+03:00"
+        value:
+          type: number
+          format: float
+          description: Значение показания
+          example: 125.5
+        unit:
+          type: string
+          enum: [Gcal, kWh, m3, GJ]
+          description: Единица измерения
+        parameter_type:
+          type: string
+          enum: [heat_energy, electricity, cold_water, hot_water, temperature, pressure]
+          description: Тип измеряемого параметра
+        status:
+          type: string
+          enum: [valid, invalid, provisional, corrected]
+          description: Статус данных после валидации
+        quality_flag:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Флаг качества данных (0-100)
+
+    MeteringDataBatch:
+      type: object
+      required:
+        - data
+      properties:
+        source:
+          type: string
+          description: Источник данных (АСКУТЭ, ручной ввод, импорт)
+          example: "ASKUTE-System-7"
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeteringData'
+          minItems: 1
+          maxItems: 1000
+
+    # === Weather Data ===
+    WeatherData:
+      type: object
+      required:
+        - location_id
+        - timestamp
+        - temperature_out
+      properties:
+        location_id:
+          type: string
+          description: Идентификатор погодной станции
+          example: "MSK-Center-01"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:00:00+03:00"
+        temperature_out:
+          type: number
+          format: float
+          description: Температура наружного воздуха, °C
+          example: -5.2
+        humidity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Относительная влажность, %
+        wind_speed:
+          type: number
+          format: float
+          minimum: 0
+          description: Скорость ветра, м/с
+        solar_radiation:
+          type: number
+          format: float
+          minimum: 0
+          description: Солнечная радиация, Вт/м²
+
+    # === Analytics ===
+    MCDAnalytics:
+      type: object
+      properties:
+        mcd_id:
+          type: string
+          example: "MCD-001"
+        period:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        consumption:
+          type: object
+          properties:
+            total:
+              type: number
+              format: float
+            average_hourly:
+              type: number
+              format: float
+            peak:
+              type: number
+              format: float
+            min:
+              type: number
+              format: float
+        efficiency:
+          type: object
+          properties:
+            specific_consumption:
+              type: number
+              format: float
+              description: Удельный расход на м², кВт·ч/м²
+            gsop_normalized:
+              type: number
+              format: float
+              description: Нормализовано по ГСОП
+            compliance_status:
+              type: string
+              enum: [Эффективный, Нормальный, Неэффективный, Критический]
+        anomalies_count:
+          type: integer
+          description: Количество обнаруженных аномалий за период
+
+    # === Forecast ===
+    ForecastRequest:
+      type: object
+      required:
+        - mcd_id
+        - horizon
+      properties:
+        mcd_id:
+          type: string
+        horizon:
+          type: integer
+          minimum: 1
+          maximum: 720
+          description: Горизонт прогноза в часах
+        model:
+          type: string
+          enum: [sarima, prophet, quantile, ensemble]
+          default: ensemble
+        include_intervals:
+          type: boolean
+          default: true
+          description: Включить доверительные интервалы
+
+    ForecastResponse:
+      type: object
+      properties:
+        mcd_id:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        model_used:
+          type: string
+        predictions:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              value:
+                type: number
+                format: float
+              lower_bound:
+                type: number
+                format: float
+              upper_bound:
+                type: number
+                format: float
+        metrics:
+          type: object
+          properties:
+            mae:
+              type: number
+              format: float
+            rmse:
+              type: number
+              format: float
+            mape:
+              type: number
+              format: float
+
+    # === Anomalies ===
+    Anomaly:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        mcd_id:
+          type: string
+        device_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        anomaly_type:
+          type: string
+          enum: [point_anomaly, contextual_anomaly, collective_anomaly, sensor_drift, missing_data]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        detectors:
+          type: array
+          items:
+            type: string
+          description: Детекторы, обнаружившие аномалию
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Уверенность детекции
+        actual_value:
+          type: number
+          format: float
+        expected_value:
+          type: number
+          format: float
+        deviation_percent:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [new, investigating, confirmed, false_positive, resolved]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # === Compliance ===
+    ComplianceStatus:
+      type: object
+      properties:
+        mcd_id:
+          type: string
+        assessment_date:
+          type: string
+          format: date
+        class:
+          type: string
+          enum: [A, B, C, D, E]
+          description: Класс энергоэффективности
+        specific_annual_consumption:
+          type: number
+          format: float
+          description: Удельный годовой расход, кВт·ч/м²
+        baseline_consumption:
+          type: number
+          format: float
+          description: Базовое значение по нормативу
+        deviation_percent:
+          type: number
+          format: float
+        compliance_code:
+          type: string
+          description: Код отклонения по ПП РФ №354
+        recommendations:
+          type: array
+          items:
+            type: string
+
+    # === Reports ===
+    ReportRequest:
+      type: object
+      required:
+        - mcd_id
+        - report_type
+        - period_start
+        - period_end
+      properties:
+        mcd_id:
+          type: string
+        report_type:
+          type: string
+          enum: [monthly, quarterly, annual, compliance, anomaly_summary]
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        format:
+          type: string
+          enum: [pdf, excel, xml_gis]
+          default: pdf
+        include_charts:
+          type: boolean
+          default: true
+        include_raw_data:
+          type: boolean
+          default: false
+
+    # === User Management ===
+    User:
+      type: object
+      required:
+        - username
+        - email
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, operator, analyst, viewer]
+        mcd_access:
+          type: array
+          items:
+            type: string
+          description: Список доступных МКД
+        created_at:
+          type: string
+          format: date-time
+        last_login:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+          default: true
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+        expires_in:
+          type: integer
+          description: Время жизни токена в секундах
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+security:
+  - bearerAuth: []
+
+paths:
+  # === Authentication ===
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Неверные учётные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление токена доступа
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Токен обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  # === Data Ingestion ===
+  /ingest/metering:
+    post:
+      tags: [Ingest]
+      summary: Приём данных телеметрии
+      operationId: ingestMeteringData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeteringDataBatch'
+      responses:
+        '202':
+          description: Данные приняты в обработку
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+        '400':
+          description: Ошибка валидации данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Превышен лимит запросов
+
+  /ingest/weather:
+    post:
+      tags: [Ingest]
+      summary: Приём погодных данных
+      operationId: ingestWeatherData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/WeatherData'
+      responses:
+        '202':
+          description: Данные приняты в обработку
+        '400':
+          description: Ошибка валидации
+
+  # === Analytics ===
+  /analytics/{mcd_id}:
+    get:
+      tags: [Analytics]
+      summary: Получить аналитику по МКД
+      operationId: getMCDAnalytics
+      parameters:
+        - name: mcd_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: granularity
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: hour
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCDAnalytics'
+        '404':
+          description: МКД не найден
+
+  /analytics/{mcd_id}/timeseries:
+    get:
+      tags: [Analytics]
+      summary: Временной ряд потребления
+      operationId: getConsumptionTimeseries
+      parameters:
+        - name: mcd_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: normalized
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Нормализовать по погоде
+      responses:
+        '200':
+          description: Временной ряд
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    timestamp:
+                      type: string
+                      format: date-time
+                    value:
+                      type: number
+                      format: float
+                    normalized_value:
+                      type: number
+                      format: float
+
+  # === Forecast ===
+  /forecast/{mcd_id}:
+    get:
+      tags: [Forecast]
+      summary: Получить прогноз потребления
+      operationId: getForecast
+      parameters:
+        - name: mcd_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastRequest'
+      responses:
+        '200':
+          description: Прогноз получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+        '400':
+          description: Ошибка параметров прогноза
+
+  # === Anomalies ===
+  /anomalies:
+    get:
+      tags: [Anomalies]
+      summary: Список аномалий
+      operationId: getAnomalies
+      parameters:
+        - name: mcd_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, investigating, confirmed, false_positive, resolved]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: start
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Список аномалий
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Anomaly'
+
+  /anomalies/{anomaly_id}:
+    patch:
+      tags: [Anomalies]
+      summary: Обновить статус аномалии
+      operationId: updateAnomalyStatus
+      parameters:
+        - name: anomaly_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [new, investigating, confirmed, false_positive, resolved]
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: Статус обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Anomaly'
+
+  # === Reports ===
+  /reports/{mcd_id}:
+    post:
+      tags: [Reports]
+      summary: Сгенерировать отчёт
+      operationId: generateReport
+      parameters:
+        - name: mcd_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '202':
+          description: Отчёт генерируется
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: URL для скачивания готового отчёта
+        '400':
+          description: Ошибка параметров отчёта
+
+  /reports/{report_id}/download:
+    get:
+      tags: [Reports]
+      summary: Скачать готовый отчёт
+      operationId: downloadReport
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Файл отчёта
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Отчёт не найден
+
+  # === Compliance ===
+  /compliance/status/{mcd_id}:
+    get:
+      tags: [Compliance]
+      summary: Проверка нормативного соответствия
+      operationId: getComplianceStatus
+      parameters:
+        - name: mcd_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: year
+          in: query
+          schema:
+            type: integer
+            minimum: 2020
+            maximum: 2030
+      responses:
+        '200':
+          description: Статус соответствия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceStatus'
+
+  /compliance/export/gis:
+    post:
+      tags: [Compliance]
+      summary: Экспорт в ГИС ЖКХ
+      operationId: exportToGIS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mcd_ids:
+                  type: array
+                  items:
+                    type: string
+                period_start:
+                  type: string
+                  format: date
+                period_end:
+                  type: string
+                  format: date
+      responses:
+        '202':
+          description: Экспорт инициирован
+        '400':
+          description: Ошибка валидации данных для ГИС
+
+  # === Admin - Users ===
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Список пользователей
+      operationId: listUsers
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [admin, operator, analyst, viewer]
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+    post:
+      tags: [Admin]
+      summary: Создать пользователя
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, role, password]
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, operator, analyst, viewer]
+                password:
+                  type: string
+                  format: password
+                mcd_access:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /admin/users/{user_id}:
+    get:
+      tags: [Admin]
+      summary: Получить пользователя
+      operationId: getUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    put:
+      tags: [Admin]
+      summary: Обновить пользователя
+      operationId: updateUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, operator, analyst, viewer]
+                mcd_access:
+                  type: array
+                  items:
+                    type: string
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Пользователь обновлён
+
+    delete:
+      tags: [Admin]
+      summary: Удалить пользователя
+      operationId: deleteUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Пользователь удалён
+
+  # === Health Check ===
+  /health:
+    get:
+      tags: [System]
+      summary: Проверка здоровья системы
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Система работает
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [up, down]
+                      cache:
+                        type: string
+                        enum: [up, down]
+                      broker:
+                        type: string
+                        enum: [up, down]
+                      ml_models:
+                        type: string
+                        enum: [up, down]
+
+  /health/ready:
+    get:
+      tags: [System]
+      summary: Готовность к обработке запросов
+      operationId: readinessCheck
+      security: []
+      responses:
+        '200':
+          description: Готов
+        '503':
+          description: Не готов
