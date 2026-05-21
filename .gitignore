@@ -1,40 +1,55 @@
-```python
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.so
-*.dylib
-*.dll
-*.exe
-*.out
+```
+# Test coverage and cache
+.coverage
+htmlcov/
+.mypy_cache/
+.pytest_cache/
 
 # Dependencies
-.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
 venv/
-.env
-.env.local
-*.env.*
-
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-*.swo
-
-# Coverage reports
+.venv/
+.venv*/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
 .coverage
-coverage/
-htmlcov/
+.nox/
 
-# Editors
+# Build artifacts
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# System files
-.DS_Store
-Thumbs.db
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+*.env.*
 ```
