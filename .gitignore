@@ -1,4 +1,4 @@
 ```
-# Test directories
-backend/tests/
+# Test configuration
+pytest.ini
 ```
