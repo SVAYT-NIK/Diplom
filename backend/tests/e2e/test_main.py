@@ -1,5 +1,4 @@
 """End-to-end tests for main application flow."""
-import pytest
 
 
 class TestMainFlow:

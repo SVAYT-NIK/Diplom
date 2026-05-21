@@ -1,5 +1,4 @@
 """Unit tests for backend.core.config module."""
-import pytest
 from backend.core.config import Settings
 
 
