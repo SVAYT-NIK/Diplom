@@ -2,6 +2,21 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import List, Optional
 from functools import lru_cache
+import logging
+
+
+def get_logger(name: str = __name__) -> logging.Logger:
+    """Создаёт и настраивает логгер с форматированием."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
 
 
 class Settings(BaseSettings):
