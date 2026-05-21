@@ -1,9 +1,9 @@
 """
 Ingest endpoints for receiving metering and weather data.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from datetime import datetime
 
 router = APIRouter()

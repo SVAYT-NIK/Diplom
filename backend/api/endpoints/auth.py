@@ -1,7 +1,7 @@
 """
 Auth endpoints for user authentication and token management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 

@@ -1,47 +1,127 @@
-```
-# Python
-__pycache__/
+# Compiled and build artifacts
 *.pyc
+__pycache__/
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.class
+*.out
+
+# Dependencies
+.venv/
+venv/
+.env
+.env.local
+*.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Python specific
+*.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
 *.pyo
 *.pyd
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
 .Python
-env/
-venv/
-.venv/
-.ENV
-.env
-.env.*
-.venv.bak/
 pip-log.txt
 pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.pytest_cache/
-.hypothesis/
+
+# System files
 .DS_Store
-
-# Django
+Thumbs.db
+.DS_Store?
+ehthumbs.db
+Icon?
+.directory
+.Trashes
+*.nib
+*~.nib
+*~
+*.db
+*.db-journal
+*.tmp
+*.temp
 *.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+*.swp
+*.swo
+*~
 
-# Flask
-instance/
-.webassets-cache
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.DS_Store
+desktop.ini
+$RECYCLE.BIN/
+*.tar*
+*.zip
+*.gz
+*.rar
+*.7z
+*.bz2
+*.xz
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Poetry
-poetry.lock
-```
+# IDE related
+.vs/
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+*.db
+*.db-journal
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~

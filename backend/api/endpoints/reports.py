@@ -3,7 +3,6 @@ Reports generation endpoints.
 """
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
 
 router = APIRouter()

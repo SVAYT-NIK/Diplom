@@ -1,9 +1,9 @@
 """
 Analytics endpoints for data analysis and statistics.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import List
 from datetime import datetime
 
 router = APIRouter()
