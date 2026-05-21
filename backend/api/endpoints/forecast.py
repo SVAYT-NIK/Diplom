@@ -3,7 +3,7 @@ Forecast endpoints for energy consumption prediction.
 """
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from typing import List
+from typing import Optional, List
 
 router = APIRouter()
 

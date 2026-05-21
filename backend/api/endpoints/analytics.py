@@ -3,7 +3,7 @@ Analytics endpoints for data analysis and statistics.
 """
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from typing import List
+from typing import Optional, List
 from datetime import datetime
 
 router = APIRouter()
