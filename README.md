@@ -1,43 +1,58 @@
-# Diplom
-Программа для Дипломной работы
+# Система мониторинга и анализа энергопотребления МКД
 
-## Описание проекта
-
-Система анализа энергоэффективности многоквартирных домов (МКД) с использованием ML-методов и соблюдением нормативных требований РФ (ПП №354, №124, СП 50.13330).
+## 📋 Описание
+Система предназначена для сбора, хранения, анализа и визуализации данных о потреблении тепловой энергии в многоквартирных домах (МКД) с учётом погодных условий и нормативных требований РФ.
 
 ## 🏗️ Архитектура
+Проект реализует 4-уровневую архитектуру:
+1. **Источники данных** - АСКУТЭ, погодные API, справочники
+2. **Брокер сообщений** - RabbitMQ для буферизации потоков данных
+3. **Хранение и ETL** - PostgreSQL + Prefect для обработки и нормализации
+4. **Аналитика и API** - FastAPI backend + ML модели + React frontend
 
-4-уровневая архитектура:
-1. **Источники данных** - АСКУТЭ, Росгидромет, справочники
-2. **Брокер и валидация** - RabbitMQ/Kafka, первичная валидация
-3. **Хранение и ETL** - PostgreSQL+TimescaleDB, MinIO, Prefect пайплайны
-4. **Аналитика и API** - FastAPI, ML модели (регрессия, ARIMA, Prophet, anomaly detection)
-
-Подробности в [ARCHITECTURE.md](./ARCHITECTURE.md)
+### Технологический стек
+- **Backend**: Python 3.11+, FastAPI, SQLAlchemy (async), Celery
+- **Frontend**: React 18 + TypeScript, Vite, Ant Design
+- **БД**: PostgreSQL 15 (с нативным партиционированием)
+- **Очереди**: Redis, RabbitMQ
+- **ML**: pandas, scikit-learn, statsmodels, prophet, pyod, MLflow
+- **Инфраструктура**: Docker, Docker Compose, Prometheus, Grafana
 
 ## 🚀 Быстрый старт
 
+### Требования
+- Docker 20.10+
+- Docker Compose 2.0+
+- Git
+
+### Установка и запуск
+
 ```bash
+# Клонирование репозитория
+git clone <repository-url>
+cd workspace
+
 # Запуск всех сервисов
-docker-compose up -d
+docker compose up -d --build
 
-# Проверка статуса
-docker-compose ps
+# Просмотр логов
+docker compose logs -f
 
-# Логи backend
-docker-compose logs -f backend
+# Остановка
+docker compose down
 ```
 
-### Доступ к сервисам
+### Доступ к сервисам после запуска
 
-| Сервис | URL |
-|--------|-----|
-| API Docs | http://localhost:8000/docs |
-| Frontend | http://localhost:5173 |
-| Grafana | http://localhost:3001 (admin/admin) |
-| Prometheus | http://localhost:9090 |
-
-См. [DEPLOYMENT.md](./docs/DEPLOYMENT.md) для подробностей.
+| Сервис | URL | Логин/Пароль |
+|--------|-----|--------------|
+| API Docs | http://localhost:8000/docs | - |
+| Frontend | http://localhost:3000 | - |
+| Grafana | http://localhost:3001 | admin/admin |
+| Prometheus | http://localhost:9090 | - |
+| MLflow | http://localhost:5000 | - |
+| MinIO Console | http://localhost:9001 | minioadmin/minioadmin |
+| RabbitMQ Management | http://localhost:15672 | guest/guest |
 
 ## 📁 Структура проекта
 

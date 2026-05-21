@@ -39,10 +39,14 @@ async def close_db():
     await engine.dispose()
 
 
-async def get_db() -> AsyncSession:
+async def get_db():
     """Зависимость для получения сессии БД."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
         finally:
             await session.close()
+
+
+# Alias for backward compatibility
+get_db_session = get_db
